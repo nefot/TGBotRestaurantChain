@@ -1,0 +1,36 @@
+# Исключаем виртуальное окружение Poetry
+.env
+.venv/
+poetry.lock
+
+# Файлы конфигурации среды
+*.env
+*.venv
+.envrc
+*.ini
+*.cfg
+*.local
+*.secret
+
+# Django файлы
+__pycache__/
+*.py[cod]
+*.sqlite3
+db.sqlite3
+media/
+staticfiles/
+
+# Логи и дампы БД
+logs/
+*.log
+*.sql
+*.dump
+
+# IDE и редакторы
+.vscode/
+.idea/
+*.iml
+
+# Кэш, временные файлы
+.DS_Store
+Thumbs.db
