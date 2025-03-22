@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 from faker import Faker
-from SecurityStaff.models import ContactInfo, Post, Violation, ViolationType, Waiter
+from SecurityStaff.models import ContactInfo, Post, Violation, ViolationType, Waiter, ViolationStatus
 
 
 class Command(BaseCommand):
@@ -10,8 +10,19 @@ class Command(BaseCommand):
         fake = Faker('ru_RU')
         self.stdout.write("Создание тестовых данных...")
 
+        self.stdout.write("Очистка существующих данных...")
+        Violation.objects.all().delete()
+        Waiter.objects.all().delete()
+        ViolationType.objects.all().delete()
+        Post.objects.all().delete()
+        ContactInfo.objects.all().delete()
+        ViolationStatus.objects.all().delete()
+        self.stdout.write("Существующие данные очищены.")
+
+        # Создание ContactInfo (контактной информации)
         contact_infos = []
-        for _ in range(10):
+        _i = 10
+        for _ in range(_i):
             contact = ContactInfo(
                 email=fake.email(),
                 phone=fake.phone_number(),
@@ -19,11 +30,12 @@ class Command(BaseCommand):
             )
             contact.save()
             contact_infos.append(contact)
-        self.stdout.write("Создано 10 контактных записей.")
+        self.stdout.write(f"Создано {_i} контактных записей.")
 
         # Создание Post (должностей)
         posts = []
-        for _ in range(5):
+        _i = 5
+        for _ in range(_i):
             post = Post(
                 title=fake.job(),
                 description=fake.text(),
@@ -32,42 +44,56 @@ class Command(BaseCommand):
             )
             post.save()
             posts.append(post)
-        self.stdout.write("Создано 5 должностей.")
+        self.stdout.write(f"Создано {_i} должностей.")
 
         # Создание Waiter (официантов)
         waiters = []
-        for _ in range(10):
+        _i = 10
+        for i in range(_i):
             waiter = Waiter(
                 first_name=fake.first_name(),
                 last_name=fake.last_name(),
                 patronymic=fake.middle_name(),
                 contact_info=fake.random_element(elements=contact_infos),
+                user_id=i + 1,
             )
             waiter.save()
             # Назначаем случайные должности официанту
             waiter.posts.set(fake.random_elements(elements=posts, length=fake.random_int(min=1, max=3)))
             waiters.append(waiter)
-        self.stdout.write("Создано 10 официантов.")
+        self.stdout.write(f"Создано {_i} официантов.")
 
         # Создание ViolationType (типов нарушений)
         violation_types = []
-        for _ in range(5):
+        _i = 5
+        for _ in range(_i):
             violation_type = ViolationType(
                 name=fake.word().capitalize() + " нарушение",
                 description=fake.text(),
             )
             violation_type.save()
             violation_types.append(violation_type)
-        self.stdout.write("Создано 5 типов нарушений.")
+        self.stdout.write(f"Создано {_i} типов нарушений.")
+
+        # Создание ViolationStatus (состояний нарушений)
+        violation_statuses = []
+        status_names = ["Открыто", "В процессе", "Закрыто"]
+        for name in status_names:
+            status = ViolationStatus(name=name)
+            status.save()
+            violation_statuses.append(status)
+        self.stdout.write(f"Создано {len(status_names)} состояний нарушений.")
 
         # Создание Violation (нарушений)
-        for _ in range(20):
+        _i = 2350
+        for _ in range(_i):
             violation = Violation(
                 note=fake.text(),
                 feedback=fake.random_element(elements=waiters),
                 violation_type=fake.random_element(elements=violation_types),
+                status=fake.random_element(elements=violation_statuses),  # Назначаем случайное состояние
             )
             violation.save()
-        self.stdout.write("Создано 20 нарушений.")
+        self.stdout.write(f"Создано {_i} нарушений.")
 
         self.stdout.write(self.style.SUCCESS("Тестовые данные успешно созданы!"))

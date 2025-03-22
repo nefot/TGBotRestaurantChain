@@ -33,7 +33,6 @@ class Violation(models.Model):
         blank=True,
     )
 
-
     date = models.DateField(
         auto_now_add=True,
         verbose_name='Дата нарушения',
@@ -60,6 +59,14 @@ class Violation(models.Model):
         on_delete=models.SET_NULL,
         verbose_name='Тип нарушения',
         help_text='Выберите тип нарушения.',
+        null=True,
+        blank=True,
+    )
+    status = models.ForeignKey(
+        "ViolationStatus",
+        on_delete=models.SET_NULL,
+        verbose_name='Состояние нарушения',
+        help_text='Выберите состояние нарушения.',
         null=True,
         blank=True,
     )
