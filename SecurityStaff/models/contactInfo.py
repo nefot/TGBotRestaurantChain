@@ -5,11 +5,11 @@ from django.core.validators import EmailValidator, RegexValidator
 class ContactInfo(models.Model):
     # Электронная почта
     email = models.CharField(
-        max_length=254,  # Максимальная длина email по стандарту
+        max_length=254,
         verbose_name='Электронная почта',
         validators=[EmailValidator(message='Введите корректный адрес электронной почты.')],
         help_text='Введите адрес электронной почты.',
-        unique=True,  # Уникальное значение
+        unique=True,
     )
 
     # Номер телефона
@@ -23,14 +23,14 @@ class ContactInfo(models.Model):
             )
         ],
         help_text='Введите номер телефона в формате +999999999.',
-        blank=True,  # Поле не обязательно для заполнения
+        blank=True,
     )
 
     # Адрес
     address = models.TextField(
         verbose_name='Адрес',
         help_text='Введите полный адрес.',
-        blank=True,  # Поле не обязательно для заполнения
+        blank=True,
     )
 
     # Дата создания записи
@@ -54,4 +54,4 @@ class ContactInfo(models.Model):
     class Meta:
         verbose_name = 'Контактная информация'
         verbose_name_plural = 'Контактные информации'
-        ordering = ['email']  # Сортировка по email
+        ordering = ['email']

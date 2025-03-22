@@ -25,7 +25,7 @@ class Post(models.Model):
     description = models.TextField(
         verbose_name='Описание должности',
         help_text='Введите описание обязанностей и требований для этой должности.',
-        blank=True,  # Поле не обязательно для заполнения
+        blank=True,
     )
 
     # Зарплата
@@ -34,14 +34,14 @@ class Post(models.Model):
         decimal_places=2,
         verbose_name='Зарплата',
         help_text='Введите размер зарплаты для этой должности.',
-        validators=[validate_salary],  # Валидация зарплаты
+        validators=[validate_salary],
     )
 
     # Требуемый опыт работы (в годах)
     experience_required = models.PositiveIntegerField(
         verbose_name='Требуемый опыт работы',
         help_text='Введите требуемый опыт работы в годах.',
-        default=0,  # По умолчанию опыт не требуется
+        default=0,
     )
 
     # Дата создания записи
@@ -65,4 +65,4 @@ class Post(models.Model):
     class Meta:
         verbose_name = 'Должность'
         verbose_name_plural = 'Должности'
-        ordering = ['title']  # Сортировка по названию должности
+        ordering = ['title']

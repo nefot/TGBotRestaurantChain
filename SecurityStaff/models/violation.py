@@ -19,8 +19,8 @@ class Violation(models.Model):
         upload_to='violations/images/',
         verbose_name='Изображение нарушения',
         validators=[
-            FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png']),  # Разрешенные форматы
-            validate_image_size,  # Валидация размера изображения
+            FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png']),
+            validate_image_size,
         ],
         help_text='Загрузите изображение нарушения (формат: JPG, JPEG, PNG; размер: до 5 МБ).'
     )
@@ -30,10 +30,10 @@ class Violation(models.Model):
         default='',
         verbose_name='Примечание',
         help_text='Введите дополнительную информацию о нарушении.',
-        blank=True,  # Поле не обязательно для заполнения
+        blank=True,
     )
 
-    # Дата нарушения
+
     date = models.DateField(
         auto_now_add=True,
         verbose_name='Дата нарушения',
@@ -52,7 +52,7 @@ class Violation(models.Model):
         on_delete=models.SET_NULL,
         verbose_name='Обратная связь от',
         help_text='Выберите официанта, оставившего обратную связь.',
-        null=True,  # Поле может быть пустым
+        null=True,
         blank=True,
     ),
     violation_type = models.ForeignKey(
@@ -60,7 +60,7 @@ class Violation(models.Model):
         on_delete=models.SET_NULL,
         verbose_name='Тип нарушения',
         help_text='Выберите тип нарушения.',
-        null=True,  # Поле может быть пустым
+        null=True,
         blank=True,
     )
 
@@ -82,4 +82,4 @@ class Violation(models.Model):
     class Meta:
         verbose_name = 'Нарушение'
         verbose_name_plural = 'Нарушения'
-        ordering = ['-date']  # Сортировка по дате (сначала новые)
+        ordering = ['-date']

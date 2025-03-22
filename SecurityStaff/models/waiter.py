@@ -10,7 +10,7 @@ class Waiter(models.Model):
         upload_to='waiters/images/',
         verbose_name='Фотография',
         help_text='Загрузите фотографию официанта.',
-        blank=True,  # Поле не обязательно для заполнения
+        blank=True,
     )
 
     # Имя
@@ -34,7 +34,7 @@ class Waiter(models.Model):
         max_length=50,
         verbose_name='Отчество',
         help_text='Введите отчество официанта.',
-        blank=True,  # Поле не обязательно для заполнения
+        blank=True,
     )
 
     # Должности (связь Many-to-Many с моделью Post)
@@ -42,7 +42,7 @@ class Waiter(models.Model):
         "Post",
         verbose_name='Должности',
         help_text='Выберите должности официанта.',
-        related_name='waiters',  # Обратная связь для Post
+        related_name='waiters',
     )
 
     # Дата создания записи
@@ -60,7 +60,7 @@ class Waiter(models.Model):
         ContactInfo,
         on_delete=models.SET_NULL,
         related_name='waiters',
-        null=True, blank=True  # Позволяет оставить поле пустым
+        null=True, blank=True
     )
 
     def __str__(self):
@@ -72,4 +72,4 @@ class Waiter(models.Model):
     class Meta:
         verbose_name = 'Официант'
         verbose_name_plural = 'Официанты'
-        ordering = ['last_name', 'first_name']  # Сортировка по фамилии и имени
+        ordering = ['last_name', 'first_name']

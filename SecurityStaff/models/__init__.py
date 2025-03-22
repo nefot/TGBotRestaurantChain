@@ -5,5 +5,4 @@ from .violation import Violation
 from .violationType import ViolationType
 from .waiter import Waiter
 
-# Опционально: можно указать, какие модели будут доступны при импорте из models
-__all__ = ['Post', 'Violation', 'Waiter', 'ContactInfo','ViolationType']
+__all__ = ['Post', 'Violation', 'Waiter', 'ContactInfo', 'ViolationType']

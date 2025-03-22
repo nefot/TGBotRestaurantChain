@@ -7,12 +7,11 @@ class Command(BaseCommand):
     help = 'Заполняет базу данных тестовыми данными'
 
     def handle(self, *args, **kwargs):
-        fake = Faker('ru_RU')  # Используем русскую локаль для Faker
+        fake = Faker('ru_RU')
         self.stdout.write("Создание тестовых данных...")
 
-        # Создание ContactInfo
         contact_infos = []
-        for _ in range(10):  # Создаем 10 контактных записей
+        for _ in range(10):
             contact = ContactInfo(
                 email=fake.email(),
                 phone=fake.phone_number(),
@@ -24,7 +23,7 @@ class Command(BaseCommand):
 
         # Создание Post (должностей)
         posts = []
-        for _ in range(5):  # Создаем 5 должностей
+        for _ in range(5):
             post = Post(
                 title=fake.job(),
                 description=fake.text(),
@@ -37,7 +36,7 @@ class Command(BaseCommand):
 
         # Создание Waiter (официантов)
         waiters = []
-        for _ in range(10):  # Создаем 10 официантов
+        for _ in range(10):
             waiter = Waiter(
                 first_name=fake.first_name(),
                 last_name=fake.last_name(),
@@ -52,7 +51,7 @@ class Command(BaseCommand):
 
         # Создание ViolationType (типов нарушений)
         violation_types = []
-        for _ in range(5):  # Создаем 5 типов нарушений
+        for _ in range(5):
             violation_type = ViolationType(
                 name=fake.word().capitalize() + " нарушение",
                 description=fake.text(),
@@ -62,11 +61,11 @@ class Command(BaseCommand):
         self.stdout.write("Создано 5 типов нарушений.")
 
         # Создание Violation (нарушений)
-        for _ in range(20):  # Создаем 20 нарушений
+        for _ in range(20):
             violation = Violation(
                 note=fake.text(),
-                feedback=fake.random_element(elements=waiters),  # Официант, связанный с нарушением
-                violation_type=fake.random_element(elements=violation_types),  # Тип нарушения
+                feedback=fake.random_element(elements=waiters),
+                violation_type=fake.random_element(elements=violation_types),
             )
             violation.save()
         self.stdout.write("Создано 20 нарушений.")
