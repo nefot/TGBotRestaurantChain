@@ -5,5 +5,6 @@ from .violation import Violation
 from .violationType import ViolationType
 from .waiter import Waiter
 from .ViolationStatus import ViolationStatus
+from .ViolationWaiter import ViolationWaiter
 
-__all__ = ['Post', 'Violation', 'Waiter', 'ContactInfo', 'ViolationType', 'ViolationStatus']
+__all__ = ['Post', 'Violation', 'Waiter', 'ContactInfo', 'ViolationType', 'ViolationStatus','ViolationWaiter']

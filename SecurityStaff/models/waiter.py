@@ -5,7 +5,7 @@ from SecurityStaff.models import ContactInfo
 
 
 class Waiter(models.Model):
-    user_id = models.BigIntegerField(unique=True, verbose_name="ID пользователя Telegram")
+    user_id = models.BigIntegerField(unique=False, verbose_name="ID пользователя Telegram")
     # Фотография официанта
     image = models.ImageField(
         upload_to='waiters/images/',

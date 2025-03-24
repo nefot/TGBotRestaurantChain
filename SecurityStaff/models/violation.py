@@ -16,7 +16,7 @@ def validate_image_size(image):
 class Violation(models.Model):
     # Изображение нарушения
     image = models.ImageField(
-        upload_to='violations/images/',
+        upload_to='violations/images/%Y/%m/%d/',
         verbose_name='Изображение нарушения',
         validators=[
             FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png']),
@@ -40,20 +40,12 @@ class Violation(models.Model):
     )
 
     # Связь с официантом (нарушителем)
-    feedback = models.ForeignKey(
+    waiters = models.ManyToManyField(
         "Waiter",
-        on_delete=models.CASCADE,
-        verbose_name='Официант',
-        help_text='Выберите официанта, связанного с нарушением.',
+        through='ViolationWaiter',
+        verbose_name='Официанты',
+        help_text='Сотрудники, связанные с нарушением.',
     )
-    feedback_by = models.ForeignKey(
-        "Waiter",
-        on_delete=models.SET_NULL,
-        verbose_name='Обратная связь от',
-        help_text='Выберите официанта, оставившего обратную связь.',
-        null=True,
-        blank=True,
-    ),
     violation_type = models.ForeignKey(
         "ViolationType",
         on_delete=models.SET_NULL,

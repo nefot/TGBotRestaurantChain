@@ -1,34 +1,202 @@
-# SecurityStaff/telegramBot/handlers/security_handlers.py
+import os
 
-from aiogram import types
-from aiogram.filters import CommandStart
-from aiogram.types import Message
-from SecurityStaff.models import Violation
-from ..keyboards import security_keyboard, violations_management_keyboard
-from ..templates import violation_template
+from aiogram import Router, F
+from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.types import ContentType
+from aiogram.types import Message, ReplyKeyboardRemove
 from asgiref.sync import sync_to_async
 
+from SecurityStaff.models import Violation, Waiter, ViolationType, ViolationStatus, ViolationWaiter
+from src_tgbotrestaurantchain import settings
+from ..keyboards import security_keyboard, violations_management_keyboard
 
-# Обработчик команды /start
-async def command_start_handler(message: Message) -> None:
-    await message.answer("Добро пожаловать в службу безопасности!", reply_markup=security_keyboard)
+router = Router()
 
+from .violation_view import router as violation_view_router
+# В начале файла добавим импорт
+from .employee_profiles import router as employee_profiles_router
 
-# Обработчик кнопки "Управление нарушениями"
-async def handle_violations_menu(message: Message) -> None:
-    await message.answer("Выберите действие:", reply_markup=violations_management_keyboard)
-
-
-# Обработчик кнопки "Просмотр нарушений"
-async def handle_view_violations(message: Message) -> None:
-    violations = await sync_to_async(list)(Violation.objects.filter(feedback__user_id=message.from_user.id))
-    if violations:
-        for violation in violations:
-            await message.answer(violation_template(violation))
-    else:
-        await message.answer("У вас нет нарушений.")
+# После создания основного роутера добавим включение нового роутера
+router.include_router(employee_profiles_router)
+router.include_router(violation_view_router)
 
 
-# Обработчик кнопки "Назад"
-async def handle_back(message: Message) -> None:
-    await message.answer("Возвращаемся в главное меню.", reply_markup=security_keyboard)
+class AddViolationState(StatesGroup):
+    waiting_for_photo = State()
+    waiting_for_note = State()
+    waiting_for_waiter = State()
+    waiting_for_type = State()
+    waiting_for_status = State()
+
+
+@router.message(Command("start"))
+async def cmd_start(message: Message):
+    """Обработчик команды /start"""
+    await message.answer(
+        "Добро пожаловать в систему учета нарушений!",
+        reply_markup=security_keyboard
+    )
+
+
+@router.message(F.text == "📋 Управление нарушениями")
+async def handle_violations_menu(message: Message):
+    await message.answer(
+        "Выберите действие с нарушениями:",
+        reply_markup=violations_management_keyboard
+    )
+
+
+@router.message(F.text == "📝 Добавить нарушение")
+async def start_add_violation(message: Message, state: FSMContext) -> None:
+    """Инициирует процесс добавления нарушения, запрашивая фото.
+
+    :param message: Входящее сообщение с командой
+    :param state: Контекст состояния FSM
+    """
+    await message.answer(
+        "Пожалуйста, отправьте фотографию нарушения:",
+        reply_markup=ReplyKeyboardRemove()
+    )
+    await state.set_state(AddViolationState.waiting_for_photo)
+
+
+@router.message(AddViolationState.waiting_for_photo, F.content_type == ContentType.PHOTO)
+async def process_photo(message: Message, state: FSMContext, bot) -> None:
+    """Обрабатывает фото нарушения и сохраняет его в media."""
+    photo = message.photo[-1]
+
+    # Generate a unique filename
+    file_ext = 'jpg'  # or detect from mime type
+    filename = f"violation_{message.message_id}.{file_ext}"
+    media_path = os.path.join(settings.MEDIA_ROOT, 'violations/images', filename)
+
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(media_path), exist_ok=True)
+
+    # Download and save the file
+    file = await bot.download(photo, destination=media_path)
+
+    # Store relative path in state
+    relative_path = os.path.join('violations/images', filename)
+    await state.update_data(photo=relative_path)
+    await message.answer("Теперь введите описание нарушения:")
+    await state.set_state(AddViolationState.waiting_for_note)
+
+
+@router.message(AddViolationState.waiting_for_note)
+async def process_note(message: Message, state: FSMContext) -> None:
+    """Обрабатывает описание нарушения и запрашивает ФИО официанта.
+
+    :param message: Сообщение с описанием нарушения
+    :param state: Контекст состояния FSM
+    """
+    await state.update_data(note=message.text)
+
+    waiters = await sync_to_async(list)(Waiter.objects.all())
+    waiters_list = "\n".join([f"{w.last_name} {w.first_name}" for w in waiters])
+
+    await message.answer(
+        f"Введите ФИО официанта. Доступные официанты:\n{waiters_list}"
+    )
+    await state.set_state(AddViolationState.waiting_for_waiter)
+
+
+@router.message(AddViolationState.waiting_for_waiter)
+async def process_waiter(message: Message, state: FSMContext) -> None:
+    """
+    Обрабатывает ФИО официанта и запрашивает тип нарушения.
+
+    :param message: Сообщение с ФИО официанта в формате "Фамилия Имя"
+    :param state: Текущее состояние FSM для сохранения данных
+    :raises ValueError: Если введено некорректное ФИО
+    :raises Waiter.DoesNotExist: Если официант не найден
+    """
+    try:
+        last_name, first_name = message.text.split(maxsplit=1)
+        waiter = await sync_to_async(Waiter.objects.get)(
+            last_name=last_name,
+            first_name=first_name
+        )
+        await state.update_data(waiter=waiter)
+
+        types = await sync_to_async(list)(ViolationType.objects.all())
+        types_list = "\n".join([f"{t.id}: {t.name}" for t in types])
+
+        await message.answer(f"Введите ID типа нарушения:\n{types_list}")
+        await state.set_state(AddViolationState.waiting_for_type)
+
+    except ValueError:
+        await message.answer("Ошибка: Введите ФИО в формате 'Фамилия Имя'")
+    except Waiter.DoesNotExist:
+        await message.answer("Ошибка: Официант не найден")
+    except Exception as e:
+        await message.answer(f"Ошибка: {str(e)}")
+
+
+@router.message(AddViolationState.waiting_for_type)
+async def process_type(message: Message, state: FSMContext) -> None:
+    """
+    Обрабатывает ID типа нарушения и запрашивает статус нарушения.
+
+    :param message: Сообщение от пользователя с ID типа нарушения
+    :param state: Текущее состояние FSM
+    """
+    try:
+        type_id = int(message.text)
+        violation_type = await sync_to_async(ViolationType.objects.get)(id=type_id)
+        await state.update_data(violation_type=violation_type)
+
+        statuses = await sync_to_async(list)(ViolationStatus.objects.all())
+        statuses_list = "\n".join([f"{s.id}: {s.name}" for s in statuses])
+
+        await message.answer(f"Введите ID статуса нарушения:\n{statuses_list}")
+        await state.set_state(AddViolationState.waiting_for_status)
+    except ValueError:
+        await message.answer("Ошибка: Введите число.")
+    except ViolationType.DoesNotExist:
+        await message.answer("Ошибка: Тип нарушения не найден.")
+    except Exception as e:
+        await message.answer(f"Ошибка: {str(e)}")
+
+
+@router.message(AddViolationState.waiting_for_status)
+async def process_status(message: Message, state: FSMContext) -> None:
+    """Обрабатывает статус нарушения и сохраняет полное нарушение в БД.
+
+    :param message: Сообщение с ID статуса нарушения
+    :param state: Контекст состояния FSM с данными нарушения
+    :raises ValueError: Если введен некорректный ID статуса
+    :raises ViolationStatus.DoesNotExist: Если статус не найден
+    """
+    try:
+        status_id = int(message.text)
+        data = await state.get_data()
+
+        violation = Violation(
+            image=data['photo'],
+            note=data['note'],
+            violation_type=data['violation_type'],
+            status=await sync_to_async(ViolationStatus.objects.get)(id=status_id)
+        )
+        await sync_to_async(violation.save)()
+
+        await sync_to_async(ViolationWaiter.objects.create)(
+            violation=violation,
+            waiter=data['waiter'],
+            role='Нарушитель'
+        )
+
+        await message.answer("✅ Нарушение успешно добавлено!", reply_markup=security_keyboard)
+        await state.clear()
+
+    except ValueError:
+        await message.answer("Ошибка: Введите числовой ID статуса")
+        await state.clear()
+    except ViolationStatus.DoesNotExist:
+        await message.answer("Ошибка: Статус нарушения не найден")
+        await state.clear()
+    except Exception as e:
+        await message.answer(f"Ошибка сохранения: {str(e)}")
+        await state.clear()

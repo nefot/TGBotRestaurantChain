@@ -1,32 +1,29 @@
-# SecurityStaff/telegramBot/SecurityBot.py
-
 import asyncio
 import os
 import django
 from aiogram import Bot, Dispatcher
-from aiogram.filters import CommandStart
+from aiogram.fsm.storage.memory import MemoryStorage
 from .bot_config import SECURITY_BOT_TOKEN
-from .handlers.security_handlers import (command_start_handler, handle_violations_menu, handle_view_violations,
-                                         handle_back)
+from .handlers import security_handlers
 
 # Настройка Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'src_tgbotrestaurantchain.settings')
 django.setup()
 
-bot = Bot(token=SECURITY_BOT_TOKEN)
-dp = Dispatcher()
 
-# Регистрация обработчиков
-dp.message.register(command_start_handler, CommandStart())
-dp.message.register(handle_violations_menu, lambda message: message.text == "📋 Управление нарушениями")
-dp.message.register(handle_view_violations, lambda message: message.text == "🔍 Просмотр нарушений")
-dp.message.register(handle_back, lambda message: message.text == "🔙 Назад")  # Регистрация обработчика для кнопки
-# "Назад"
+async def main():
+    storage = MemoryStorage()
+    bot = Bot(token=SECURITY_BOT_TOKEN)
+    dp = Dispatcher(storage=storage)
 
+    dp.include_router(security_handlers.router)
 
-# Запуск бота
-async def main() -> None:
-    await dp.start_polling(bot)
+    try:
+        await dp.start_polling(bot)
+    except Exception as e:
+        print(f"Ошибка: {e}")
+    finally:
+        await bot.session.close()
 
 
 if __name__ == "__main__":

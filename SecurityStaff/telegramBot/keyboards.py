@@ -1,8 +1,10 @@
 # SecurityStaff/telegramBot/keyboards.py
 
+# Клавиатура для службы безопасности
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
-# Клавиатура для службы безопасности
+# Основная клавиатура безопасности
 security_keyboard = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="📋 Управление нарушениями")],
@@ -11,6 +13,30 @@ security_keyboard = ReplyKeyboardMarkup(
     resize_keyboard=True
 )
 
+# Клавиатура управления сотрудниками
+employees_management_keyboard = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="➕ Добавить сотрудника"), KeyboardButton(text="➖ Удалить сотрудника")],
+        [KeyboardButton(text="🔙 Назад")]
+    ],
+    resize_keyboard=True
+)
+security_keyboard = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="📋 Управление нарушениями")],
+        [KeyboardButton(text="📊 Статистика"), KeyboardButton(text="👥 Профили сотрудников")]
+    ],
+    resize_keyboard=True
+)
+
+violations_management_keyboard = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="📝 Добавить нарушение")],
+        [KeyboardButton(text="🔍 Просмотр нарушений")],
+        [KeyboardButton(text="🔙 Назад")]
+    ],
+    resize_keyboard=True
+)
 # Клавиатура для официантов
 waiter_keyboard = ReplyKeyboardMarkup(
     keyboard=[
@@ -21,11 +47,14 @@ waiter_keyboard = ReplyKeyboardMarkup(
 )
 
 # Клавиатура для управления нарушениями
-violations_management_keyboard = ReplyKeyboardMarkup(
+back_to_menu_keyboard = ReplyKeyboardMarkup(
+    keyboard=[[KeyboardButton(text="🔙 Назад")]],
+    resize_keyboard=True
+)
+security_keyboard = ReplyKeyboardMarkup(
     keyboard=[
-        [KeyboardButton(text="📝 Добавить нарушение")],
-        [KeyboardButton(text="🔍 Просмотр нарушений")],
-        [KeyboardButton(text="🔙 Назад")]
+        [KeyboardButton(text="📋 Управление нарушениями")],
+        [KeyboardButton(text="📊 Статистика"), KeyboardButton(text="👥 Профили сотрудников")]
     ],
     resize_keyboard=True
 )

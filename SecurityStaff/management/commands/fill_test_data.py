@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 from faker import Faker
-from SecurityStaff.models import ContactInfo, Post, Violation, ViolationType, Waiter, ViolationStatus
+from SecurityStaff.models import ContactInfo, Post, Violation, ViolationType, Waiter, ViolationStatus, ViolationWaiter
 
 
 class Command(BaseCommand):
@@ -11,6 +11,7 @@ class Command(BaseCommand):
         self.stdout.write("Создание тестовых данных...")
 
         self.stdout.write("Очистка существующих данных...")
+        ViolationWaiter.objects.all().delete()  # Очищаем промежуточную таблицу
         Violation.objects.all().delete()
         Waiter.objects.all().delete()
         ViolationType.objects.all().delete()
@@ -85,15 +86,34 @@ class Command(BaseCommand):
         self.stdout.write(f"Создано {len(status_names)} состояний нарушений.")
 
         # Создание Violation (нарушений)
-        _i = 2350
+        _i = 0
         for _ in range(_i):
             violation = Violation(
                 note=fake.text(),
-                feedback=fake.random_element(elements=waiters),
                 violation_type=fake.random_element(elements=violation_types),
                 status=fake.random_element(elements=violation_statuses),  # Назначаем случайное состояние
             )
             violation.save()
+
+            # Связываем нарушение с официантами через промежуточную модель
+            # Выбираем случайного официанта как нарушителя
+            violator = fake.random_element(elements=waiters)
+            ViolationWaiter.objects.create(
+                violation=violation,
+                waiter=violator,
+                role='Нарушитель',
+            )
+
+            # Выбираем случайного официанта как оставившего обратную связь (опционально)
+            if fake.boolean(chance_of_getting_true=50):  # 50% вероятность
+                feedback_by = fake.random_element(elements=waiters)
+                if feedback_by != violator:  # Убедимся, что это не тот же официант
+                    ViolationWaiter.objects.create(
+                        violation=violation,
+                        waiter=feedback_by,
+                        role='Обратная связь',
+                    )
+
         self.stdout.write(f"Создано {_i} нарушений.")
 
         self.stdout.write(self.style.SUCCESS("Тестовые данные успешно созданы!"))
