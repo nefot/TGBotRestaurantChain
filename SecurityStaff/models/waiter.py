@@ -1,7 +1,7 @@
-from django.db import models
 from django.core.validators import MinLengthValidator
+from django.db import models
 
-from SecurityStaff.models import ContactInfo
+from SecurityStaff.models import ContactInfo, Violation
 
 
 class Waiter(models.Model):
@@ -69,6 +69,17 @@ class Waiter(models.Model):
         Строковое представление объекта.
         """
         return f'{self.last_name} {self.first_name} {self.patronymic}'
+
+    def delete_violations(self):
+        """Удаляет все нарушения, связанные с этим официантом"""
+        violations = Violation.objects.filter(violation_waiters__waiter=self)
+        for violation in violations:
+            violation.delete()  # Это вызовет каскадное удаление через ViolationWaiter
+
+    def delete(self, *args, **kwargs):
+        """Переопределяем стандартное удаление для очистки нарушений"""
+        self.delete_violations()
+        super().delete(*args, **kwargs)
 
     class Meta:
         verbose_name = 'Официант'

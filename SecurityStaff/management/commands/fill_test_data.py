@@ -11,7 +11,7 @@ class Command(BaseCommand):
         self.stdout.write("Создание тестовых данных...")
 
         self.stdout.write("Очистка существующих данных...")
-        ViolationWaiter.objects.all().delete()  # Очищаем промежуточную таблицу
+        ViolationWaiter.objects.all().delete()
         Violation.objects.all().delete()
         Waiter.objects.all().delete()
         ViolationType.objects.all().delete()
@@ -59,7 +59,7 @@ class Command(BaseCommand):
                 user_id=i + 1,
             )
             waiter.save()
-            # Назначаем случайные должности официанту
+
             waiter.posts.set(fake.random_elements(elements=posts, length=fake.random_int(min=1, max=3)))
             waiters.append(waiter)
         self.stdout.write(f"Создано {_i} официантов.")
@@ -86,17 +86,17 @@ class Command(BaseCommand):
         self.stdout.write(f"Создано {len(status_names)} состояний нарушений.")
 
         # Создание Violation (нарушений)
-        _i = 0
+        _i = 122
         for _ in range(_i):
             violation = Violation(
                 note=fake.text(),
                 violation_type=fake.random_element(elements=violation_types),
-                status=fake.random_element(elements=violation_statuses),  # Назначаем случайное состояние
+                status=fake.random_element(elements=violation_statuses),
             )
             violation.save()
 
-            # Связываем нарушение с официантами через промежуточную модель
-            # Выбираем случайного официанта как нарушителя
+
+
             violator = fake.random_element(elements=waiters)
             ViolationWaiter.objects.create(
                 violation=violation,
@@ -105,9 +105,9 @@ class Command(BaseCommand):
             )
 
             # Выбираем случайного официанта как оставившего обратную связь (опционально)
-            if fake.boolean(chance_of_getting_true=50):  # 50% вероятность
+            if fake.boolean(chance_of_getting_true=50):
                 feedback_by = fake.random_element(elements=waiters)
-                if feedback_by != violator:  # Убедимся, что это не тот же официант
+                if feedback_by != violator:
                     ViolationWaiter.objects.create(
                         violation=violation,
                         waiter=feedback_by,

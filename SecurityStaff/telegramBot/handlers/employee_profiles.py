@@ -1,10 +1,11 @@
 import os
-from aiogram.types import BufferedInputFile  # Добавляем правильный импорт
+import re
 
 from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import Message, InputFile, ReplyKeyboardRemove
+from aiogram.types import BufferedInputFile
+from aiogram.types import Message, ReplyKeyboardRemove
 from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
@@ -13,6 +14,8 @@ from SecurityStaff.models import Waiter, ViolationWaiter, ContactInfo, Post
 from ..keyboards import security_keyboard, employees_management_keyboard
 
 router = Router()
+PHONE_REGEX = r'^(\+7|8)[\s-]?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}$'
+EMAIL_REGEX = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
 
 
 # Состояния для добавления сотрудника
@@ -23,6 +26,10 @@ class AddEmployeeStates(StatesGroup):
     waiting_for_patronymic = State()
     waiting_for_user_id = State()
     waiting_for_contact_info = State()
+    waiting_for_phone = State()
+    waiting_for_email = State()
+    waiting_for_address = State()
+
     waiting_for_posts = State()
 
 
@@ -30,8 +37,6 @@ class AddEmployeeStates(StatesGroup):
 class DeleteEmployeeStates(StatesGroup):
     waiting_for_employee_number = State()
 
-
-# ... предыдущие функции (handle_employee_profiles, handle_back_from_profiles) остаются без изменений ...
 
 @router.message(F.text == "➕ Добавить сотрудника")
 async def handle_add_employee(message: Message, state: FSMContext):
@@ -78,7 +83,7 @@ async def process_patronymic(message: Message, state: FSMContext):
     """Обработка отчества сотрудника"""
     patronymic = message.text if message.text != '-' else ''
     await state.update_data(patronymic=patronymic)
-    await message.answer("Введите user_id сотрудника в Telegram:")
+    await message.answer("Введите тег сотрудника в Telegram, пример (@nefoter):")
     await state.set_state(AddEmployeeStates.waiting_for_user_id)
 
 
@@ -86,38 +91,86 @@ async def process_patronymic(message: Message, state: FSMContext):
 async def process_user_id(message: Message, state: FSMContext):
     """Обработка user_id сотрудника"""
     try:
-        user_id = int(message.text)
+        user_id = str(message.text)
+
+        if user_id.split('')[0] != '@':
+            await message.answer("тег должен начинаться с '@', пример (@nefoter)")
+            return
+
         await state.update_data(user_id=user_id)
 
-        # Запрашиваем контактную информацию
-        await message.answer("Введите контактную информацию в формате:\n"
-                             "Телефон,Email,Адрес\n"
-                             "Пример: +79991234567,example@mail.ru,ул. Примерная, д.1")
-        await state.set_state(AddEmployeeStates.waiting_for_contact_info)
-    except ValueError:
-        await message.answer("Пожалуйста, введите числовой user_id")
+        await message.answer("Введите номер телефона")
+        await state.set_state(AddEmployeeStates.waiting_for_phone)
+    except ValueError as e:
+        await message.answer(str(e))
 
 
-@router.message(AddEmployeeStates.waiting_for_contact_info)
-async def process_contact_info(message: Message, state: FSMContext):
-    """Обработка контактной информации"""
-    try:
-        phone, email, address = message.text.split(',')
-        await state.update_data(contact_info={'phone': phone.strip(), 'email': email.strip(), 'address':
-            address.strip()})
+@router.message(AddEmployeeStates.waiting_for_phone)
+async def process_phone(message: Message, state: FSMContext):
+    """Обработка номера телефона с валидацией"""
+    phone = message.text.strip()
 
-        # Получаем список должностей для выбора
-        posts = await sync_to_async(list)(Post.objects.all())
-        if posts:
-            posts_list = "\n".join([f"{p.id}: {p.title}" for p in posts])
-            await message.answer(f"Введите ID должностей через запятую:\n{posts_list}")
-        else:
-            await message.answer("Нет доступных должностей. Сотрудник будет добавлен без должностей.")
-            await state.update_data(posts=[])
+    if phone:
+        if not re.match(PHONE_REGEX, phone):
+            await message.answer("❌ Неверный формат телефона. Пожалуйста, введите номер в формате +79991234567 или "
+                                 "89991234567")
+            return
 
-        await state.set_state(AddEmployeeStates.waiting_for_posts)
-    except Exception as e:
-        await message.answer("Неверный формат. Введите данные в формате: Телефон,Email,Адрес")
+        cleaned_phone = re.sub(r'[^\d+]', '', phone)
+        if cleaned_phone.startswith('8'):
+            cleaned_phone = '+7' + cleaned_phone[1:]
+
+        await state.update_data(phone=cleaned_phone)
+
+    await message.answer("Введите email (необязательно, формат: example@domain.com):")
+    await state.set_state(AddEmployeeStates.waiting_for_email)
+
+
+@router.message(AddEmployeeStates.waiting_for_email)
+async def process_email(message: Message, state: FSMContext):
+    """Обработка email с валидацией"""
+    email = message.text.strip()
+
+    if email:
+        if not re.match(EMAIL_REGEX, email):
+            await message.answer("❌ Неверный формат email. Пожалуйста, введите email в формате example@domain.com")
+            return
+
+        await state.update_data(email=email.lower())
+
+    await message.answer("Введите адрес (необязательно, минимум 5 символов):")
+    await state.set_state(AddEmployeeStates.waiting_for_address)
+
+
+@router.message(AddEmployeeStates.waiting_for_address)
+async def process_address(message: Message, state: FSMContext):
+    """Обработка адреса с базовой валидацией"""
+    address = message.text.strip()
+
+    if address:
+        if len(address) < 5:
+            await message.answer("❌ Адрес слишком короткий. Пожалуйста, введите минимум 5 символов")
+            return
+
+        await state.update_data(address=address)
+
+    data = await state.get_data()
+    contact_info = {
+        'phone'  : data.get('phone', ''),
+        'email'  : data.get('email', ''),
+        'address': data.get('address', '')
+    }
+    await state.update_data(contact_info=contact_info)
+
+    posts = await sync_to_async(list)(Post.objects.all())
+    if posts:
+        posts_list = "\n".join([f"{p.id}: {p.title}" for p in posts])
+        await message.answer(f"Введите ID должностей через запятую:\n{posts_list}")
+    else:
+        await message.answer("Нет доступных должностей. Сотрудник будет добавлен без должностей.")
+        await state.update_data(posts=[])
+
+    await state.set_state(AddEmployeeStates.waiting_for_posts)
 
 
 @router.message(AddEmployeeStates.waiting_for_posts)
@@ -240,18 +293,13 @@ async def process_delete_employee(message: Message, state: FSMContext):
         await state.clear()
 
 
-# Клавиатура д
-
-
 @router.message(F.text == "👥 Профили сотрудников")
 async def handle_employee_profiles(message: Message, state: FSMContext):
     """Обработчик кнопки 'Профили сотрудников'."""
     # Получаем сотрудников с предварительной загрузкой связанных данных
     waiters = await sync_to_async(list)(
-        Waiter.objects.order_by('last_name', 'first_name')
-        .select_related('contact_info')
-        .prefetch_related('posts')
-        .all()
+        Waiter.objects.order_by('last_name', 'first_name').select_related('contact_info').prefetch_related(
+            'posts').all()
     )
 
     if not waiters:
@@ -301,7 +349,7 @@ async def handle_employee_number(message: Message, state: FSMContext, bot):
         number = int(message.text) - 1
         if 0 <= number < len(waiters):
             waiter = waiters[number]
-            await show_waiter_profile(message, waiter, bot)  # Передаем bot здесь
+            await show_waiter_profile(message, waiter, bot)
         else:
             await message.answer("Неверный номер сотрудника. Попробуйте снова.")
     except ValueError:

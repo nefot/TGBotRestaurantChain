@@ -15,7 +15,6 @@ from ..keyboards import security_keyboard, violations_management_keyboard
 router = Router()
 
 from .violation_view import router as violation_view_router
-# В начале файла добавим импорт
 from .employee_profiles import router as employee_profiles_router
 
 # После создания основного роутера добавим включение нового роутера
