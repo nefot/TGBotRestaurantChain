@@ -4,13 +4,15 @@ import re
 from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import BufferedInputFile
+from aiogram.types import BufferedInputFile, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.types import Message, ReplyKeyboardRemove
+from aiogram.types.callback_query import CallbackQuery
 from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 
 from SecurityStaff.models import Waiter, ViolationWaiter, ContactInfo, Post
+from .service_file import get_all_employees
 from ..keyboards import security_keyboard, employees_management_keyboard
 
 router = Router()
@@ -29,7 +31,7 @@ class AddEmployeeStates(StatesGroup):
     waiting_for_phone = State()
     waiting_for_email = State()
     waiting_for_address = State()
-
+    waiting_for_employee_number = State()
     waiting_for_posts = State()
 
 
@@ -293,40 +295,144 @@ async def process_delete_employee(message: Message, state: FSMContext):
         await state.clear()
 
 
+PAGE_SIZE = 50  # Количество сотрудников на одной странице
+
+
+async def get_violations_count(waiter: Waiter) -> int:
+    """Возвращает количество нарушений для сотрудника"""
+    return await sync_to_async(
+        ViolationWaiter.objects.filter(waiter=waiter, role='Нарушитель').count
+    )()
+
+
 @router.message(F.text == "👥 Профили сотрудников")
 async def handle_employee_profiles(message: Message, state: FSMContext):
-    """Обработчик кнопки 'Профили сотрудников'."""
-    # Получаем сотрудников с предварительной загрузкой связанных данных
-    waiters = await sync_to_async(list)(
-        Waiter.objects.order_by('last_name', 'first_name').select_related('contact_info').prefetch_related(
-            'posts').all()
-    )
+    """Обработчик кнопки 'Профили сотрудников' с пагинацией"""
+    all_waiters = await get_all_employees()
 
-    if not waiters:
+    if not all_waiters:
         await message.answer("Список сотрудников пуст.", reply_markup=employees_management_keyboard)
         return
 
-    # Формируем нумерованный список сотрудников
+    # Сохраняем всех сотрудников в состоянии
+    await state.update_data({
+        'all_waiters' : all_waiters,
+        'current_page': 0,
+        'waiters_dict': {i + 1: waiter for i, waiter in enumerate(all_waiters)}  # Словарь для быстрого доступа
+    })
+
+    # Отображаем первую страницу
+    await show_employees_page(message, state)
+    # Устанавливаем состояние ожидания выбора сотрудника
+    await state.set_state(AddEmployeeStates.waiting_for_employee_number)
+
+
+@router.message(AddEmployeeStates.waiting_for_employee_number, F.text.regexp(r'^\d+$'))
+async def handle_employee_selection(message: Message, state: FSMContext):
+    """Обработчик выбора сотрудника по номеру"""
+    data = await state.get_data()
+    waiters_dict = data.get('waiters_dict', {})
+
+    try:
+        employee_number = int(message.text)
+        if employee_number not in waiters_dict:
+            raise ValueError
+
+        waiter = waiters_dict[employee_number]
+        # Получаем полную информацию о сотруднике
+        violations_count = await get_violations_count(waiter)
+        posts = await sync_to_async(list)(waiter.posts.all())
+
+        response_text = (
+            f"👤 Профиль сотрудника:\n"
+            f"ФИО: {waiter.last_name} {waiter.first_name} {waiter.patronymic or ''}\n"
+            f"Должности: {', '.join(post.title for post in posts) if posts else 'Не указано'}\n"
+            f"Нарушений: {violations_count}\n"
+            f"Контакт: {waiter.contact_info.phone if waiter.contact_info else 'Не указан'}"
+        )
+
+        await message.answer(response_text, reply_markup=employees_management_keyboard)
+        await state.clear()
+
+    except ValueError:
+        await message.answer("Неверный номер сотрудника. Пожалуйста, введите номер из списка:")
+
+
+@router.message(AddEmployeeStates.waiting_for_employee_number)
+async def handle_wrong_employee_input(message: Message):
+    """Обработчик некорректного ввода номера"""
+    await message.answer("Пожалуйста, введите только номер сотрудника из списка:")
+
+
+async def show_employees_page(message, state: FSMContext):
+    """Отображает страницу со списком сотрудников с правильной нумерацией"""
+    data = await state.get_data()
+    all_waiters = data.get('all_waiters', [])
+    current_page = data.get('current_page', 0)
+    total_pages = (len(all_waiters) + PAGE_SIZE - 1) // PAGE_SIZE
+
+    # Вычисляем границы для текущей страницы
+    start_idx = current_page * PAGE_SIZE
+    end_idx = start_idx + PAGE_SIZE
+    page_waiters = all_waiters[start_idx:end_idx]
+
+    # Формируем список сотрудников для текущей страницы
     employees_list = []
-    for i, waiter in enumerate(waiters):
-        # Получаем количество нарушений для каждого сотрудника
-        violations_count = await sync_to_async(
-            lambda: ViolationWaiter.objects.filter(waiter=waiter, role='Нарушитель').count()
-        )()
+    for i, waiter in enumerate(page_waiters, start=1):
+        global_number = start_idx + i  # Глобальный номер (1-based)
+        violations_count = await get_violations_count(waiter)
         employees_list.append(
-            f"{i + 1}. {waiter.last_name} {waiter.first_name} {waiter.patronymic or ''} "
+            f"{global_number}. {waiter.last_name} {waiter.first_name} {waiter.patronymic or ''} "
             f"(нарушений: {violations_count})"
         )
 
-    await message.answer(
-        f"Список сотрудников (в алфавитном порядке):\n\n" + "\n".join(employees_list) + "\n\n"
-                                                                                        "Введите номер сотрудника для "
-                                                                                        "просмотра профиля:",
-        reply_markup=employees_management_keyboard
+    # Создаем клавиатуру пагинации
+    pagination_kb = InlineKeyboardMarkup(inline_keyboard=[])
+    row_buttons = []
+
+    # Добавляем кнопку "Назад" если нужно
+    if current_page > 0:
+        row_buttons.append(InlineKeyboardButton(text="⬅️ Назад", callback_data="prev_page"))
+
+    # Добавляем кнопку "Вперед" если нужно
+    if end_idx < len(all_waiters):
+        row_buttons.append(InlineKeyboardButton(text="Вперед ➡️", callback_data="next_page"))
+
+    if row_buttons:
+        pagination_kb.inline_keyboard.append(row_buttons)
+
+    # Добавляем номер страницы
+    pagination_kb.inline_keyboard.append([
+        InlineKeyboardButton(text=f"Страница {current_page + 1}/{total_pages}", callback_data="page_info")
+    ])
+
+    text = (
+            f"Список сотрудников (всего: {len(all_waiters)}):\n\n" +
+            "\n".join(employees_list) +
+            "\n\nВведите номер сотрудника для просмотра профиля:"
     )
 
-    # Сохраняем список сотрудников в состоянии
-    await state.update_data(waiters=waiters)
+    if isinstance(message, CallbackQuery):
+        await message.message.edit_text(text, reply_markup=pagination_kb)
+        await message.answer()
+    else:
+        await message.answer(text, reply_markup=pagination_kb)
+
+
+@router.callback_query(F.data.in_(["prev_page", "next_page"]))
+async def handle_pagination(callback: CallbackQuery, state: FSMContext):
+    """Обработчик переключения страниц"""
+    data = await state.get_data()
+    current_page = data.get('current_page', 0)
+
+    if callback.data == "prev_page" and current_page > 0:
+        await state.update_data(current_page=current_page - 1)
+    elif callback.data == "next_page":
+        all_waiters = data.get('all_waiters', [])
+        if (current_page + 1) * PAGE_SIZE < len(all_waiters):
+            await state.update_data(current_page=current_page + 1)
+
+    await show_employees_page(callback, state)
 
 
 @router.message(F.text == "🔙 Назад")

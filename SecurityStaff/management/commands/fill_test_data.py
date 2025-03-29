@@ -22,7 +22,7 @@ class Command(BaseCommand):
 
         # Создание ContactInfo (контактной информации)
         contact_infos = []
-        _i = 10
+        _i = 1000
         for _ in range(_i):
             contact = ContactInfo(
                 email=fake.email(),
@@ -35,7 +35,7 @@ class Command(BaseCommand):
 
         # Создание Post (должностей)
         posts = []
-        _i = 5
+        _i = 500
         for _ in range(_i):
             post = Post(
                 title=fake.job(),
@@ -49,7 +49,7 @@ class Command(BaseCommand):
 
         # Создание Waiter (официантов)
         waiters = []
-        _i = 10
+        _i = 5
         for i in range(_i):
             waiter = Waiter(
                 first_name=fake.first_name(),
@@ -66,10 +66,11 @@ class Command(BaseCommand):
 
         # Создание ViolationType (типов нарушений)
         violation_types = []
-        _i = 5
+        _i = 5000
+
         for _ in range(_i):
             violation_type = ViolationType(
-                name=fake.word().capitalize() + " нарушение",
+                name=fake.word().capitalize() + " нарушение #" + str(_),
                 description=fake.text(),
             )
             violation_type.save()
@@ -86,7 +87,7 @@ class Command(BaseCommand):
         self.stdout.write(f"Создано {len(status_names)} состояний нарушений.")
 
         # Создание Violation (нарушений)
-        _i = 122
+        _i = 12200
         for _ in range(_i):
             violation = Violation(
                 note=fake.text(),

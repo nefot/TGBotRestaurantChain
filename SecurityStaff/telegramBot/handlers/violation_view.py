@@ -150,7 +150,7 @@ async def display_violations(message: Message, state: FSMContext, bot):
             text=f"{violation.date.strftime('%d.%m')} {waiter.last_name} {violation.violation_type.name}",
             callback_data=f"violation_{violation.id}"
         )
-    builder.adjust(1)
+
     # Кнопки пагинации
     pagination_buttons = []
     if current_page > 0:

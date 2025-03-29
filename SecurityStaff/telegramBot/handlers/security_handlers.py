@@ -83,6 +83,7 @@ async def process_photo(message: Message, state: FSMContext, bot) -> None:
     await message.answer("Теперь введите описание нарушения:")
     await state.set_state(AddViolationState.waiting_for_note)
 
+#todo:fix
 
 @router.message(AddViolationState.waiting_for_note)
 async def process_note(message: Message, state: FSMContext) -> None:
