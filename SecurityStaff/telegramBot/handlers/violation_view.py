@@ -2,7 +2,7 @@ import os
 from datetime import datetime, timedelta
 
 from aiogram import Router, F
-from aiogram import types  # Add this import at the top of the file
+from aiogram import types
 from aiogram.enums.parse_mode import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, InlineKeyboardButton
@@ -57,13 +57,10 @@ async def handle_back_button(message: Message, state: FSMContext):
 async def back_to_menu(callback: CallbackQuery, state: FSMContext):
     """Обработчик кнопки 'Назад' в меню нарушений"""
     try:
-        # Удаляем предыдущее сообщение с кнопками
         await callback.message.delete()
 
-        # Очищаем состояние (если нужно)
         await state.clear()
 
-        # Отправляем пользователя обратно в меню управления нарушениями
         await callback.message.answer(
             "Меню управления нарушениями:",
             reply_markup=violations_management_keyboard
@@ -91,7 +88,6 @@ async def send_violation_details(chat_id: int, violation, bot):
         if violation.image:
             image_path = os.path.join(settings.MEDIA_ROOT, str(violation.image))
             if os.path.exists(image_path):
-                # Correct way to create InputFile
                 photo = types.BufferedInputFile.from_file(
                     path=image_path,
                     filename=os.path.basename(image_path)
@@ -151,7 +147,7 @@ async def display_violations(message: Message, state: FSMContext, bot):
             callback_data=f"violation_{violation.id}"
         )
     builder.adjust(1)
-    # Кнопки пагинации
+
     pagination_buttons = []
     if current_page > 0:
         pagination_buttons.append(InlineKeyboardButton(
@@ -159,7 +155,6 @@ async def display_violations(message: Message, state: FSMContext, bot):
             callback_data="prev_page"
         ))
 
-    # Проверяем есть ли следующая страница
     next_page_violations = await get_violations_with_waiters(current_page + 1)
     if next_page_violations:
         pagination_buttons.append(InlineKeyboardButton(

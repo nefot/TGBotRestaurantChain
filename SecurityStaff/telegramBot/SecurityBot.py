@@ -6,7 +6,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from .bot_config import SECURITY_BOT_TOKEN
 from .handlers import security_handlers
 
-# Настройка Django
+
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'src_tgbotrestaurantchain.settings')
 django.setup()
 

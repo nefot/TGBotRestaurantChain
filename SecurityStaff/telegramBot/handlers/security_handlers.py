@@ -19,7 +19,7 @@ from .employee_profiles import router as employee_profiles_router
 from .statistics import router as statistics_router
 from .profile_management import router as profile_management_router
 
-# После создания основного роутера добавим включение нового роутера
+
 router.include_router(profile_management_router)
 router.include_router(employee_profiles_router)
 router.include_router(violation_view_router)
@@ -70,18 +70,18 @@ async def process_photo(message: Message, state: FSMContext, bot) -> None:
     """Обрабатывает фото нарушения и сохраняет его в media."""
     photo = message.photo[-1]
 
-    # Generate a unique filename
-    file_ext = 'jpg'  # or detect from mime type
+
+    file_ext = 'jpg'
     filename = f"violation_{message.message_id}.{file_ext}"
     media_path = os.path.join(settings.MEDIA_ROOT, 'violations/images', filename)
 
-    # Ensure directory exists
+
     os.makedirs(os.path.dirname(media_path), exist_ok=True)
 
-    # Download and save the file
+
     file = await bot.download(photo, destination=media_path)
 
-    # Store relative path in state
+
     relative_path = os.path.join('violations/images', filename)
     await state.update_data(photo=relative_path)
     await message.answer("Теперь введите описание нарушения:")

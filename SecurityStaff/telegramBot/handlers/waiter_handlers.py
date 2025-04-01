@@ -1,4 +1,4 @@
-# SecurityStaff/telegramBot/handlers/waiter_handlers.py
+
 
 from aiogram import types
 from aiogram.filters import CommandStart

@@ -22,7 +22,7 @@ async def handle_profile_management(message: Message):
 @router.message(F.text == "🆔 Мой профиль")
 async def handle_my_profile(message: Message, bot):
     """Обработчик кнопки 'Мой профиль'"""
-    # Ищем сотрудника по user_id (username Telegram)
+
     user_id = f"@{message.from_user.username}" if message.from_user.username else str(message.from_user.id)
 
     try:

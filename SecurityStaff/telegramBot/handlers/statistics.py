@@ -5,7 +5,7 @@ from aiogram.types import Message
 from asgiref.sync import sync_to_async
 
 from SecurityStaff.models import Waiter, ViolationWaiter
-from .employee_profiles import show_waiter_profile  # Импортируем функцию показа профиля
+from .employee_profiles import show_waiter_profile
 from ..keyboards import security_keyboard, statistics_keyboard, back_keyboard
 
 router = Router()
@@ -18,7 +18,7 @@ class StatisticsStates(StatesGroup):
 @router.message(F.text == "📊 Статистика")
 async def handle_statistics(message: Message, state: FSMContext, bot):
     """Обработчик кнопки 'Статистика' - показывает список сотрудников и их нарушений"""
-    # Получаем сотрудников с предварительной загрузкой связанных данных
+
     waiters = await sync_to_async(list)(
         Waiter.objects.order_by('last_name', 'first_name').select_related('contact_info').prefetch_related(
             'posts').all()
@@ -28,10 +28,10 @@ async def handle_statistics(message: Message, state: FSMContext, bot):
         await message.answer("Список сотрудников пуст.", reply_markup=security_keyboard)
         return
 
-    # Формируем нумерованный список сотрудников
+
     employees_list = []
     for i, waiter in enumerate(waiters):
-        # Получаем количество нарушений для каждого сотрудника
+
         violations_count = await sync_to_async(
             lambda: ViolationWaiter.objects.filter(waiter=waiter, role='Нарушитель').count()
         )()
@@ -65,13 +65,13 @@ async def process_employee_search(message: Message, state: FSMContext, bot):
         await handle_back_from_statistics(message, state)
         return
 
-    # Получаем всех сотрудников
+
     waiters = await sync_to_async(list)(
         Waiter.objects.order_by('last_name', 'first_name').select_related('contact_info').prefetch_related(
             'posts').all()
     )
 
-    # Фильтруем по запросу
+
     filtered_waiters = [
         w for w in waiters
         if search_query in w.last_name.lower() or
@@ -85,10 +85,10 @@ async def process_employee_search(message: Message, state: FSMContext, bot):
         return
 
     if len(filtered_waiters) == 1:
-        # Если найден ровно один сотрудник - показываем его профиль
+
         await show_waiter_profile(message, filtered_waiters[0], bot)
     else:
-        # Если несколько - показываем список
+
         employees_list = []
         for waiter in filtered_waiters:
             violations_count = await sync_to_async(

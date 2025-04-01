@@ -18,7 +18,7 @@ PHONE_REGEX = r'^(\+7|8)[\s-]?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}$'
 EMAIL_REGEX = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
 
 
-# Состояния для добавления сотрудника
+
 class AddEmployeeStates(StatesGroup):
     waiting_for_photo = State()
     waiting_for_last_name = State()
@@ -33,7 +33,7 @@ class AddEmployeeStates(StatesGroup):
     waiting_for_posts = State()
 
 
-# Состояния для удаления сотрудника
+
 class DeleteEmployeeStates(StatesGroup):
     waiting_for_employee_number = State()
 
@@ -56,7 +56,7 @@ async def process_employee_photo(message: Message, state: FSMContext, bot):
     file = await bot.get_file(file_id)
     file_path = file.file_path
 
-    # Сохраняем информацию о фото в состоянии
+
     await state.update_data(photo_file_path=file_path)
     await message.answer("Введите фамилию сотрудника:")
     await state.set_state(AddEmployeeStates.waiting_for_last_name)
@@ -179,18 +179,18 @@ async def process_posts(message: Message, state: FSMContext, bot):
     try:
         data = await state.get_data()
 
-        # Скачиваем и сохраняем фото
+
         file_path = data['photo_file_path']
         photo = await bot.download_file(file_path)
 
-        # Создаем контактную информацию
+
         contact_info = await sync_to_async(ContactInfo.objects.create)(
             phone=data['contact_info']['phone'],
             email=data['contact_info']['email'],
             address=data['contact_info']['address']
         )
 
-        # Создаем сотрудника
+
         waiter = await sync_to_async(Waiter.objects.create)(
             user_id=data['user_id'],
             last_name=data['last_name'],
@@ -199,7 +199,7 @@ async def process_posts(message: Message, state: FSMContext, bot):
             contact_info=contact_info
         )
 
-        # Сохраняем фото
+
         photo_path = f"waiters/images/{waiter.id}.jpg"
         full_path = os.path.join(settings.MEDIA_ROOT, photo_path)
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
@@ -210,7 +210,7 @@ async def process_posts(message: Message, state: FSMContext, bot):
         waiter.image = photo_path
         await sync_to_async(waiter.save)()
 
-        # Добавляем должности, если они указаны
+
         if message.text:
             try:
                 post_ids = [int(id.strip()) for id in message.text.split(',')]
@@ -265,7 +265,7 @@ async def process_delete_employee(message: Message, state: FSMContext):
         if 0 <= number < len(waiters):
             waiter = waiters[number]
 
-            # Удаляем связанные данные и самого сотрудника
+
             await sync_to_async(waiter.delete)()
 
             await message.answer(
@@ -296,7 +296,7 @@ async def process_delete_employee(message: Message, state: FSMContext):
 @router.message(F.text == "👥 Профили сотрудников")
 async def handle_employee_profiles(message: Message, state: FSMContext):
     """Обработчик кнопки 'Профили сотрудников'."""
-    # Получаем сотрудников с предварительной загрузкой связанных данных
+
     waiters = await sync_to_async(list)(
         Waiter.objects.order_by('last_name', 'first_name').select_related('contact_info').prefetch_related(
             'posts').all()
@@ -305,10 +305,10 @@ async def handle_employee_profiles(message: Message, state: FSMContext):
     if not waiters:
         await message.answer("Список сотрудников пуст.", reply_markup=employees_management_keyboard)
         return
-    # Формируем нумерованный список сотрудников
+
     employees_list = []
     for i, waiter in enumerate(waiters):
-        # Получаем количество нарушений для каждого сотрудника
+
         violations_count = await sync_to_async(
             lambda: ViolationWaiter.objects.filter(waiter=waiter, role='Нарушитель').count()
         )()
@@ -324,7 +324,7 @@ async def handle_employee_profiles(message: Message, state: FSMContext):
         reply_markup=employees_management_keyboard
     )
 
-    # Сохраняем список сотрудников в состоянии
+
     await state.update_data(waiters=waiters)
 
 
@@ -357,7 +357,7 @@ async def handle_employee_number(message: Message, state: FSMContext, bot):
 
 async def show_waiter_profile(message: Message, waiter, bot):
     """Отображает профиль сотрудника с фото и количеством нарушений."""
-    # Получаем информацию о сотруднике
+
     try:
         contact_info = await sync_to_async(lambda: waiter.contact_info)()
         phone = contact_info.phone if contact_info else 'не указан'
@@ -381,22 +381,22 @@ async def show_waiter_profile(message: Message, waiter, bot):
         f"🚨 Количество нарушений: {violations_count}"
     )
 
-    # Обработка фото
+
     try:
         if waiter.image:
             image_path = os.path.join(settings.MEDIA_ROOT, str(waiter.image))
 
             if os.path.exists(image_path):
-                # Читаем файл и создаем BufferedInputFile
+
                 with open(image_path, 'rb') as photo_file:
                     photo_bytes = photo_file.read()
 
-                # Создаем объект для отправки фото
+
                 photo = BufferedInputFile(
                     file=photo_bytes,
                     filename=os.path.basename(image_path))
 
-                # Отправляем фото с подписью
+
                 await message.answer_photo(
                     photo=photo,
                     caption=profile_info,
@@ -410,7 +410,7 @@ async def show_waiter_profile(message: Message, waiter, bot):
     except Exception as e:
         profile_info += f"\n\n⚠️ Ошибка при загрузке фото: {str(e)}"
 
-    # Если фото нет или произошла ошибка, отправляем только текст
+
     await message.answer(
         profile_info,
         reply_markup=employees_management_keyboard
