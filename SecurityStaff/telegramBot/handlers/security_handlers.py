@@ -16,10 +16,14 @@ router = Router()
 
 from .violation_view import router as violation_view_router
 from .employee_profiles import router as employee_profiles_router
+from .statistics import router as statistics_router
+from .profile_management import router as profile_management_router
 
 # После создания основного роутера добавим включение нового роутера
+router.include_router(profile_management_router)
 router.include_router(employee_profiles_router)
 router.include_router(violation_view_router)
+router.include_router(statistics_router)
 
 
 class AddViolationState(StatesGroup):

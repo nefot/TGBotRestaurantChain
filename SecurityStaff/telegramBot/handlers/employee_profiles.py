@@ -305,7 +305,6 @@ async def handle_employee_profiles(message: Message, state: FSMContext):
     if not waiters:
         await message.answer("Список сотрудников пуст.", reply_markup=employees_management_keyboard)
         return
-
     # Формируем нумерованный список сотрудников
     employees_list = []
     for i, waiter in enumerate(waiters):
