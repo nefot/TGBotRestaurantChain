@@ -19,11 +19,15 @@ async def handle_profile_management(message: Message):
     )
 
 
+# profile_management.py
 @router.message(F.text == "🆔 Мой профиль")
 async def handle_my_profile(message: Message, bot):
     """Обработчик кнопки 'Мой профиль'"""
+    if not message.from_user.username:
+        await message.answer("У вас не установлен username в Telegram")
+        return
 
-    user_id = f"@{message.from_user.username}" if message.from_user.username else str(message.from_user.id)
+    user_id = f"@{message.from_user.username}"
 
     try:
         waiter = await sync_to_async(Waiter.objects.get)(user_id=user_id)

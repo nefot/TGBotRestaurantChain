@@ -1,11 +1,34 @@
+from django.core.exceptions import ValidationError
 from django.core.validators import MinLengthValidator
 from django.db import models
 
 from SecurityStaff.models import ContactInfo, Violation
 
 
+def validate_telegram_username(value):
+    """
+    Валидатор для Telegram username:
+    - Должен начинаться с @
+    - Должен содержать только буквы, цифры и подчеркивания
+    - Длина от 5 до 32 символов (включая @)
+    """
+    if not value.startswith('@'):
+        raise ValidationError('Username должен начинаться с @')
+    if len(value) < 5 or len(value) > 32:
+        raise ValidationError('Username должен быть от 5 до 32 символов')
+    if not value[1:].replace('_', '').isalnum():
+        raise ValidationError('Username может содержать только буквы, цифры и подчеркивания')
+
+
 class Waiter(models.Model):
-    user_id = models.BigIntegerField(unique=False, verbose_name="ID пользователя Telegram")
+    user_id = models.CharField(
+        max_length=32,
+        unique=True,
+        verbose_name="Telegram username",
+        validators=[validate_telegram_username],
+        help_text="Telegram username в формате @username"
+    )
+
     # Фотография официанта
     image = models.ImageField(
         upload_to='waiters/images/',

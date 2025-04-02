@@ -90,22 +90,24 @@ async def process_photo(message: Message, state: FSMContext, bot) -> None:
 
 @router.message(AddViolationState.waiting_for_note)
 async def process_note(message: Message, state: FSMContext) -> None:
-    """Обрабатывает описание нарушения и запрашивает ФИО официанта.
-
-    :param message: Сообщение с описанием нарушения
-    :param state: Контекст состояния FSM
-    """
+    """Обрабатывает описание нарушения и выводит нумерованный список официантов"""
     await state.update_data(note=message.text)
 
-    waiters = await sync_to_async(list)(Waiter.objects.all())
-    waiters_list = "\n".join([f"{w.last_name} {w.first_name}" for w in waiters])
+    waiters = await sync_to_async(list)(Waiter.objects.order_by('last_name', 'first_name').all())
+
+    if not waiters:
+        await message.answer("Нет доступных официантов в системе.")
+        return
+
+    # Формируем нумерованный список
+    waiters_list = "\n".join([f"{i + 1}. {w.last_name} {w.first_name}" for i, w in enumerate(waiters)])
 
     await message.answer(
-        f"Введите ФИО официанта. Доступные официанты:\n{waiters_list}"
+        f"Выберите номер официанта:\n\n{waiters_list}",
+        reply_markup=ReplyKeyboardRemove()
     )
+    await state.update_data(waiters=waiters)  # Сохраняем список в состоянии
     await state.set_state(AddViolationState.waiting_for_waiter)
-
-
 @router.message(AddViolationState.waiting_for_waiter)
 async def process_waiter(message: Message, state: FSMContext) -> None:
     """
@@ -116,27 +118,30 @@ async def process_waiter(message: Message, state: FSMContext) -> None:
     :raises ValueError: Если введено некорректное ФИО
     :raises Waiter.DoesNotExist: Если официант не найден
     """
+
     try:
-        last_name, first_name = message.text.split(maxsplit=1)
-        waiter = await sync_to_async(Waiter.objects.get)(
-            last_name=last_name,
-            first_name=first_name
-        )
-        await state.update_data(waiter=waiter)
+        data = await state.get_data()
+        waiters = data['waiters']
 
-        types = await sync_to_async(list)(ViolationType.objects.all())
-        types_list = "\n".join([f"{t.id}: {t.name}" for t in types])
+        # Получаем номер из сообщения
+        number = int(message.text.strip()) - 1  # -1 потому что список с 1
 
-        await message.answer(f"Введите ID типа нарушения:\n{types_list}")
-        await state.set_state(AddViolationState.waiting_for_type)
+        if 0 <= number < len(waiters):
+            waiter = waiters[number]
+            await state.update_data(waiter=waiter)
+
+            # Продолжаем процесс добавления нарушения
+            types = await sync_to_async(list)(ViolationType.objects.all())
+            types_list = "\n".join([f"{t.id}: {t.name}" for t in types])
+            await message.answer(f"Введите ID типа нарушения:\n{types_list}")
+            await state.set_state(AddViolationState.waiting_for_type)
+        else:
+            await message.answer("❌ Неверный номер. Пожалуйста, выберите номер из списка.")
 
     except ValueError:
-        await message.answer("Ошибка: Введите ФИО в формате 'Фамилия Имя'")
-    except Waiter.DoesNotExist:
-        await message.answer("Ошибка: Официант не найден")
+        await message.answer("❌ Пожалуйста, введите число (номер официанта).")
     except Exception as e:
-        await message.answer(f"Ошибка: {str(e)}")
-
+        await message.answer(f"❌ Ошибка: {str(e)}")
 
 @router.message(AddViolationState.waiting_for_type)
 async def process_type(message: Message, state: FSMContext) -> None:

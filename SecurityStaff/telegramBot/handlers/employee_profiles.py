@@ -1,5 +1,6 @@
 import os
 import re
+from datetime import datetime
 
 from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
@@ -18,7 +19,6 @@ PHONE_REGEX = r'^(\+7|8)[\s-]?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}$'
 EMAIL_REGEX = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
 
 
-
 class AddEmployeeStates(StatesGroup):
     waiting_for_photo = State()
     waiting_for_last_name = State()
@@ -29,9 +29,7 @@ class AddEmployeeStates(StatesGroup):
     waiting_for_phone = State()
     waiting_for_email = State()
     waiting_for_address = State()
-
     waiting_for_posts = State()
-
 
 
 class DeleteEmployeeStates(StatesGroup):
@@ -41,10 +39,7 @@ class DeleteEmployeeStates(StatesGroup):
 @router.message(F.text == "➕ Добавить сотрудника")
 async def handle_add_employee(message: Message, state: FSMContext):
     """Обработчик кнопки добавления сотрудника"""
-    await message.answer(
-        "Пожалуйста, отправьте фотографию сотрудника:",
-        reply_markup=ReplyKeyboardRemove()
-    )
+    await message.answer("Пожалуйста, отправьте фотографию сотрудника:", reply_markup=ReplyKeyboardRemove())
     await state.set_state(AddEmployeeStates.waiting_for_photo)
 
 
@@ -55,7 +50,6 @@ async def process_employee_photo(message: Message, state: FSMContext, bot):
     file_id = photo.file_id
     file = await bot.get_file(file_id)
     file_path = file.file_path
-
 
     await state.update_data(photo_file_path=file_path)
     await message.answer("Введите фамилию сотрудника:")
@@ -90,19 +84,55 @@ async def process_patronymic(message: Message, state: FSMContext):
 @router.message(AddEmployeeStates.waiting_for_user_id)
 async def process_user_id(message: Message, state: FSMContext):
     """Обработка user_id сотрудника"""
-    try:
-        user_id = str(message.text)
 
-        if user_id.split('')[0] != '@':
-            await message.answer("тег должен начинаться с '@', пример (@nefoter)")
-            return
 
-        await state.update_data(user_id=user_id)
 
-        await message.answer("Введите номер телефона")
-        await state.set_state(AddEmployeeStates.waiting_for_phone)
-    except ValueError as e:
-        await message.answer(str(e))
+
+    user_input = message.text.strip()
+
+    # Проверка минимальной длины
+    if len(user_input) < 5:
+        await message.answer("Username должен содержать минимум 5 символов (включая @)")
+        return
+
+    # Проверка формата username
+    if not user_input.startswith('@'):
+        await message.answer(
+            "Username должен начинаться с '@'. Пример: @nefoter\n"
+            "Пожалуйста, введите корректный username:"
+        )
+        return
+
+    # Проверка допустимых символов
+    username_part = user_input[1:]  # часть без @
+    if not username_part.replace('_', '').isalnum():
+        await message.answer(
+            "Username может содержать только буквы, цифры и подчеркивания.\n"
+            "Пример правильного формата: @nefoter123\n"
+            "Пожалуйста, введите корректный username:"
+        )
+        return
+
+    # Проверка длины username (Telegram ограничивает 5-32 символа)
+    if len(user_input) > 32:
+        await message.answer(
+            "Username слишком длинный (максимум 32 символа).\n"
+            "Пожалуйста, введите корректный username:"
+        )
+        return
+
+    # Проверка на существование такого username в базе
+    if await sync_to_async(Waiter.objects.filter(user_id=user_input).exists)():
+        await message.answer(
+            "Сотрудник с таким username уже существует.\n"
+            "Пожалуйста, введите другой username:"
+        )
+        return
+
+    # Все проверки пройдены, сохраняем username
+    await state.update_data(user_id=user_input)
+    await message.answer("✅ Username принят. Теперь введите номер телефона:")
+    await state.set_state(AddEmployeeStates.waiting_for_phone)
 
 
 @router.message(AddEmployeeStates.waiting_for_phone)
@@ -164,8 +194,14 @@ async def process_address(message: Message, state: FSMContext):
 
     posts = await sync_to_async(list)(Post.objects.all())
     if posts:
-        posts_list = "\n".join([f"{p.id}: {p.title}" for p in posts])
-        await message.answer(f"Введите ID должностей через запятую:\n{posts_list}")
+        # Разбиваем список должностей на части по 20 записей
+        posts_list = [f"{p.id}: {p.title}" for p in posts]
+        chunk_size = 20
+        for i in range(0, len(posts_list), chunk_size):
+            chunk = posts_list[i:i + chunk_size]
+            await message.answer("Доступные должности:\n" + "\n".join(chunk))
+
+        await message.answer("Введите ID нужных должностей через запятую:")
     else:
         await message.answer("Нет доступных должностей. Сотрудник будет добавлен без должностей.")
         await state.update_data(posts=[])
@@ -179,17 +215,14 @@ async def process_posts(message: Message, state: FSMContext, bot):
     try:
         data = await state.get_data()
 
-
         file_path = data['photo_file_path']
         photo = await bot.download_file(file_path)
-
 
         contact_info = await sync_to_async(ContactInfo.objects.create)(
             phone=data['contact_info']['phone'],
             email=data['contact_info']['email'],
             address=data['contact_info']['address']
         )
-
 
         waiter = await sync_to_async(Waiter.objects.create)(
             user_id=data['user_id'],
@@ -198,7 +231,6 @@ async def process_posts(message: Message, state: FSMContext, bot):
             patronymic=data.get('patronymic', ''),
             contact_info=contact_info
         )
-
 
         photo_path = f"waiters/images/{waiter.id}.jpg"
         full_path = os.path.join(settings.MEDIA_ROOT, photo_path)
@@ -209,7 +241,6 @@ async def process_posts(message: Message, state: FSMContext, bot):
 
         waiter.image = photo_path
         await sync_to_async(waiter.save)()
-
 
         if message.text:
             try:
@@ -265,7 +296,6 @@ async def process_delete_employee(message: Message, state: FSMContext):
         if 0 <= number < len(waiters):
             waiter = waiters[number]
 
-
             await sync_to_async(waiter.delete)()
 
             await message.answer(
@@ -308,7 +338,6 @@ async def handle_employee_profiles(message: Message, state: FSMContext):
 
     employees_list = []
     for i, waiter in enumerate(waiters):
-
         violations_count = await sync_to_async(
             lambda: ViolationWaiter.objects.filter(waiter=waiter, role='Нарушитель').count()
         )()
@@ -323,7 +352,6 @@ async def handle_employee_profiles(message: Message, state: FSMContext):
                                                                                         "просмотра профиля:",
         reply_markup=employees_management_keyboard
     )
-
 
     await state.update_data(waiters=waiters)
 
@@ -356,8 +384,17 @@ async def handle_employee_number(message: Message, state: FSMContext, bot):
 
 
 async def show_waiter_profile(message: Message, waiter, bot):
-    """Отображает профиль сотрудника с фото и количеством нарушений."""
+    """Отображает профиль сотрудника с новой статистикой нарушений"""
+    now = datetime.now()
+    from .statistics import get_current_month_violations_count, get_total_violations_count
 
+    current_month = now.strftime("%B").lower()
+
+    # Получаем статистику нарушений
+    current_month_count = await sync_to_async(get_current_month_violations_count)(waiter)
+    total_count = await sync_to_async(get_total_violations_count)(waiter)
+
+    # Остальной код функции остается без изменений
     try:
         contact_info = await sync_to_async(lambda: waiter.contact_info)()
         phone = contact_info.phone if contact_info else 'не указан'
@@ -369,33 +406,27 @@ async def show_waiter_profile(message: Message, waiter, bot):
     posts = await sync_to_async(lambda: list(waiter.posts.all()))()
     post_titles = ', '.join([post.title for post in posts]) if posts else 'не указаны'
 
-    violations_count = await sync_to_async(
-        lambda: ViolationWaiter.objects.filter(waiter=waiter, role='Нарушитель').count()
-    )()
-
     profile_info = (
         f"👤 ФИО: {waiter.last_name} {waiter.first_name} {waiter.patronymic or ''}\n"
         f"📞 Контакты: {phone}\n"
         f"📧 Email: {email}\n"
         f"💼 Должности: {post_titles}\n"
-        f"🚨 Количество нарушений: {violations_count}"
+        f"🚨 Нарушения: {current_month_count} за {current_month}/всего {total_count}"
     )
 
+    # Остальная часть функции (отправка фото и т.д.) остается без изменений
 
     try:
         if waiter.image:
             image_path = os.path.join(settings.MEDIA_ROOT, str(waiter.image))
 
             if os.path.exists(image_path):
-
                 with open(image_path, 'rb') as photo_file:
                     photo_bytes = photo_file.read()
-
 
                 photo = BufferedInputFile(
                     file=photo_bytes,
                     filename=os.path.basename(image_path))
-
 
                 await message.answer_photo(
                     photo=photo,
@@ -409,7 +440,6 @@ async def show_waiter_profile(message: Message, waiter, bot):
             profile_info += "\n\n⚠️ Фото сотрудника отсутствует"
     except Exception as e:
         profile_info += f"\n\n⚠️ Ошибка при загрузке фото: {str(e)}"
-
 
     await message.answer(
         profile_info,

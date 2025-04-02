@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 from faker import Faker
+
 from SecurityStaff.models import ContactInfo, Post, Violation, ViolationType, Waiter, ViolationStatus, ViolationWaiter
 
 
@@ -94,8 +95,6 @@ class Command(BaseCommand):
                 status=fake.random_element(elements=violation_statuses),
             )
             violation.save()
-
-
 
             violator = fake.random_element(elements=waiters)
             ViolationWaiter.objects.create(

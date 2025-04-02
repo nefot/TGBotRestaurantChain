@@ -42,7 +42,7 @@ back_to_menu_keyboard = ReplyKeyboardMarkup(
 # Клавиатура для статистики
 statistics_keyboard = ReplyKeyboardMarkup(
     keyboard=[
-        [KeyboardButton(text="🔍 Поиск сотрудника по имени")],
+    [KeyboardButton(text="🔍 Поиск сотрудника по имени")],
         [KeyboardButton(text="🔙 Назад")]
     ],
     resize_keyboard=True
