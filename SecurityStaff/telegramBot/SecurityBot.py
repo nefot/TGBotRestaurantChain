@@ -1,25 +1,25 @@
-import asyncio
 import os
+import asyncio
 import django
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
-
-from SecurityStaff.telegramBot.middlewares.access_control import AccessMiddleware
-from .bot_config import SECURITY_BOT_TOKEN
-from .handlers import security_handlers
-from aiogram import Bot
 from aiohttp_socks import ProxyConnector
 
+# Сначала настраиваем Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'src_tgbotrestaurantchain.settings')
 django.setup()
 
-
-proxy = "socks5://127.0.0.1:1080"
-connector = ProxyConnector.from_url(proxy)
-
+# Затем импортируем остальные компоненты
+from SecurityStaff.telegramBot.middlewares.access_control import AccessMiddleware
+from SecurityStaff.telegramBot.bot_config import SECURITY_BOT_TOKEN
+from SecurityStaff.telegramBot.handlers import security_handlers
 
 
 async def main():
+    # Настройка прокси (если нужно)
+    proxy = "socks5://127.0.0.1:1080"  # или ваш реальный прокси
+    connector = ProxyConnector.from_url(proxy) if proxy else None
+
     storage = MemoryStorage()
     bot = Bot(token=SECURITY_BOT_TOKEN, connector=connector)
     dp = Dispatcher(storage=storage)
