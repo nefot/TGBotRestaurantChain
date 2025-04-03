@@ -17,7 +17,7 @@ from SecurityStaff.telegramBot.handlers import security_handlers
 
 async def main():
     # Настройка прокси (если нужно)
-    connector = ProxyConnector.from_url("socks5://127.0.0.1:1080")
+    connector = ProxyConnector.from_url("socks5://127.0.0.1:1080", rdns=True)
 
     storage = MemoryStorage()
     bot = Bot(token="941769226:AAGLfZzmKyA-jsj2C6aNHY8A0l-N_mGhpl4", connector=connector)
