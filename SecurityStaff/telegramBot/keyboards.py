@@ -10,7 +10,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 employees_management_keyboard = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="➕ Добавить сотрудника"), KeyboardButton(text="➖ Удалить сотрудника")],
-        [KeyboardButton(text="🔙 Назад")]
+        [KeyboardButton(text="Назад")]
     ],
     resize_keyboard=True
 )

@@ -49,7 +49,7 @@ async def handle_back_button(message: Message, state: FSMContext):
     await state.clear()
     await message.answer(
         "Возвращаемся в главное меню",
-        reply_markup=security_keyboard
+        reply_markup=violations_management_keyboard
     )
 
 
@@ -167,7 +167,7 @@ async def display_violations(message: Message, state: FSMContext, bot):
 
     builder.row(InlineKeyboardButton(
         text="🔙 Назад",
-        callback_data="back_to_menu"
+        callback_data="prev_page"
     ))
 
     await message.answer(

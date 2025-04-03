@@ -40,7 +40,8 @@ async def show_statistics_list(message: Message, state: FSMContext, bot):
         return
 
     formatted_list = await get_formatted_employee_list(waiters)
-    await message.answer(formatted_list, reply_markup=statistics_keyboard)
+    await message.answer(formatted_list, reply_markup=statistics_keyboard, parse_mode='HTML'
+                         )
     await state.update_data(waiters=waiters)
 
 

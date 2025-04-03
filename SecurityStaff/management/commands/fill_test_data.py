@@ -50,7 +50,7 @@ class Command(BaseCommand):
 
         # Создание Waiter (официантов)
         waiters = []
-        _i = 10
+        _i = 23
         for i in range(_i):
             waiter = Waiter(
                 first_name=fake.first_name(),

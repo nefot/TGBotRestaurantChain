@@ -111,19 +111,21 @@ class ViolationTypeAdmin(admin.ModelAdmin):
     )
 
 
+
+
+
 @admin.register(Waiter)
 class WaiterAdmin(admin.ModelAdmin):
-    list_display = (
-        'last_name', 'first_name', 'patronymic', 'user_id', 'created_at', 'updated_at')
+    list_display = ('last_name', 'first_name', 'patronymic', 'user_id', 'has_access', 'created_at', 'updated_at')
     search_fields = ('last_name', 'first_name', 'patronymic', 'user_id')
-    list_filter = ('posts', 'created_at', 'updated_at')
+    list_filter = ('posts', 'has_access', 'created_at', 'updated_at')  # Добавили фильтр по доступу
     ordering = ('last_name', 'first_name')
     readonly_fields = ('created_at', 'updated_at')
     filter_horizontal = ('posts',)
 
     fieldsets = (
         ("Основная информация", {
-            'fields'     : ('user_id', 'image', 'first_name', 'last_name', 'patronymic'),
+            'fields'     : ('user_id', 'image', 'first_name', 'last_name', 'patronymic', 'has_access'),
             'description': "Основные данные об официанте"
         }),
         ("Должности и контактная информация", {

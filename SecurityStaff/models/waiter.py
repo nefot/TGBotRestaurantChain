@@ -29,6 +29,7 @@ class Waiter(models.Model):
         help_text="Telegram username в формате @username"
     )
 
+
     # Фотография официанта
     image = models.ImageField(
         upload_to='waiters/images/',
@@ -85,6 +86,12 @@ class Waiter(models.Model):
         on_delete=models.SET_NULL,
         related_name='waiters',
         null=True, blank=True
+    )
+    # Флаг доступа к боту
+    has_access = models.BooleanField(
+        default=False,  # По умолчанию доступ есть
+        verbose_name="Доступ к боту",
+        help_text="Отметьте, если у пользователя есть доступ к боту."
     )
 
     def __str__(self):
