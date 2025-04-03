@@ -1,0 +1,31 @@
+[project]
+name = "tgbotrestaurantchain"
+version = "0.1.0"
+description = ""
+authors = [
+    { name = "artyo", email = "artyom@mail.ru" }
+]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "django (>=5.1.7,<6.0.0)",
+    "python-dotenv (>=1.0.1,<2.0.0)",
+    "psycopg2-binary (>=2.9.10,<3.0.0)",
+    "pillow (>=11.1.0,<12.0.0)",
+    "faker (>=37.0.2,<38.0.0)",
+    "aiogram (>=3.19.0,<4.0.0)",
+    "asgiref (>=3.8.1,<4.0.0)",
+    "pyperclip (>=1.9.0,<2.0.0)",
+    "aiohttp-socks (>=0.10.1,<0.11.0)"
+]
+
+[tool.poetry]
+packages = [{ include = "src_tgbotrestaurantchain" }]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+runserver = "manage:main"
