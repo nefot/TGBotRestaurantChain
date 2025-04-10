@@ -1,10 +1,10 @@
-import os
 import asyncio
+import os
+
 import django
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiohttp_socks import ProxyConnector
-import os
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -14,14 +14,12 @@ django.setup()
 
 # Затем импортируем остальные компоненты
 from SecurityStaff.telegramBot.middlewares.access_control import AccessMiddleware
-from SecurityStaff.telegramBot.bot_config import SECURITY_BOT_TOKEN
 from SecurityStaff.telegramBot.handlers import security_handlers
 
 
 async def main():
     # Настройка прокси (если нужно)
     connector = ProxyConnector.from_url("socks5://127.0.0.1:1080", rdns=True)
-
 
     storage = MemoryStorage()
     bot = Bot(token=os.getenv("SECURITY_BOT_TOKEN"), connector=connector)

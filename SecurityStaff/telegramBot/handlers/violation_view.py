@@ -2,7 +2,6 @@ import os
 from datetime import datetime, timedelta
 
 from aiogram import Router, F
-from aiogram import types
 from aiogram.enums.parse_mode import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, InlineKeyboardButton
@@ -12,7 +11,8 @@ from django.conf import settings
 from django.db.models import Prefetch
 
 from SecurityStaff.models import Violation, ViolationWaiter
-from ..keyboards import back_to_menu_keyboard, violations_management_keyboard, security_keyboard
+from .service import prepare_violation_message
+from ..keyboards import back_to_menu_keyboard, violations_management_keyboard
 
 router = Router()
 VIOLATIONS_PER_PAGE = 5
@@ -73,50 +73,24 @@ async def back_to_menu(callback: CallbackQuery, state: FSMContext):
 
 async def send_violation_details(chat_id: int, violation, bot):
     """Отправляет полную информацию о нарушении с фото"""
-    waiter = await sync_to_async(lambda: violation.violation_waiters.first().waiter)()
+    message_data = await prepare_violation_message(violation)
+    text = message_data["text"]
 
-    text = (
-        f"🔍 Нарушение #{violation.id}\n"
-        f"👤 Сотрудник: {waiter.last_name} {waiter.first_name}\n"
-        f"📅 Дата: {violation.date.strftime('%d.%m.%Y')}\n"
-        f"🚨 Тип: {violation.violation_type.name}\n"
-        f"📝 Описание: {violation.note}\n"
-        f"🔒 Статус: {violation.status.name}"
-    )
+    if message_data["error_message"]:
+        text = f"{text}\n\n{message_data['error_message']}"
 
-    try:
-        if violation.image:
-            image_path = os.path.join(settings.MEDIA_ROOT, str(violation.image))
-            if os.path.exists(image_path):
-                photo = types.BufferedInputFile.from_file(
-                    path=image_path,
-                    filename=os.path.basename(image_path)
-                )
-                await bot.send_photo(
-                    chat_id=chat_id,
-                    photo=photo,
-                    caption=text,
-                    parse_mode=ParseMode.HTML,
-                    reply_markup=back_to_menu_keyboard
-                )
-            else:
-                await bot.send_message(
-                    chat_id=chat_id,
-                    text=f"{text}\n\n⚠️ Фото не найдено на сервере",
-                    parse_mode=ParseMode.HTML,
-                    reply_markup=back_to_menu_keyboard
-                )
-        else:
-            await bot.send_message(
-                chat_id=chat_id,
-                text=f"{text}\n\n⚠️ Фото отсутствует",
-                parse_mode=ParseMode.HTML,
-                reply_markup=back_to_menu_keyboard
-            )
-    except Exception as e:
+    if message_data["photo"] and not message_data["error_message"]:
+        await bot.send_photo(
+            chat_id=chat_id,
+            photo=message_data["photo"],
+            caption=text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=back_to_menu_keyboard
+        )
+    else:
         await bot.send_message(
             chat_id=chat_id,
-            text=f"{text}\n\n⚠️ Ошибка при загрузке фото: {str(e)}",
+            text=text,
             parse_mode=ParseMode.HTML,
             reply_markup=back_to_menu_keyboard
         )

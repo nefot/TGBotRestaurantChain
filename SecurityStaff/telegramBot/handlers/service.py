@@ -1,5 +1,6 @@
 import asyncio
 import os
+import types
 from datetime import datetime
 from typing import Optional
 
@@ -140,34 +141,6 @@ async def current_post(waiter):
         return 'не указаны'
 
 
-async def current_violation(waiter):
-    now = datetime.now()
-    month_translation = {
-        'january'  : 'январь',
-        'february' : 'февраль',
-        'march'    : 'март',
-        'april'    : 'апрель',
-        'may'      : 'май',
-        'june'     : 'июнь',
-        'july'     : 'июль',
-        'august'   : 'август',
-        'september': 'сентябрь',
-        'october'  : 'октябрь',
-        'november' : 'ноябрь',
-        'december' : 'декабрь'
-    }
-    current_month_en = now.strftime("%B").lower()
-    current_month = month_translation.get(current_month_en, current_month_en)
-    current_month_count = await sync_to_async(get_current_month_violations_count)(waiter)
-    total_count = await sync_to_async(get_total_violations_count)(waiter)
-    return f"({current_month_count} за {current_month}/всего {total_count})"
-
-
-async def current_post(waiter):
-    posts = await sync_to_async(lambda: list(waiter.posts.all()))()
-    return ', '.join([post.title for post in posts]) if posts else 'не указаны'
-
-
 async def get_formatted_employee_list(waiters):
     """Форматирует список сотрудников для отображения"""
 
@@ -220,6 +193,7 @@ async def delete_employee(message: Message, state: FSMContext):
             reply_markup=employees_management_keyboard
         )
         await state.clear()
+
 
 async def process_selected_employee_number(message: Message, state: FSMContext, bot):
     """Обрабатывает выбор сотрудника по номеру
@@ -287,3 +261,41 @@ async def validate_telegram_username(username: str) -> Optional[str]:
         )
 
     return None
+
+
+async def prepare_violation_message(violation):
+    """Подготавливает текст сообщения о нарушении и данные фото"""
+    waiter = await sync_to_async(lambda: violation.violation_waiters.first().waiter)()
+
+    text = (
+        f"🔍 Нарушение #{violation.id}\n"
+        f"👤 Сотрудник: {waiter.last_name} {waiter.first_name}\n"
+        f"📅 Дата: {violation.date.strftime('%d.%m.%Y')}\n"
+        f"🚨 Тип: {violation.violation_type.name}\n"
+        f"📝 Описание: {violation.note}\n"
+        f"🔒 Статус: {violation.status.name}"
+    )
+
+    photo = None
+    error_message = None
+
+    if violation.image:
+        image_path = os.path.join(settings.MEDIA_ROOT, str(violation.image))
+        if os.path.exists(image_path):
+            try:
+                photo = types.BufferedInputFile.from_file(
+                    path=image_path,
+                    filename=os.path.basename(image_path)
+                )
+            except Exception as e:
+                error_message = f"⚠️ Ошибка при загрузке фото: {str(e)}"
+        else:
+            error_message = "⚠️ Фото не найдено на сервере"
+    else:
+        error_message = "⚠️ Фото отсутствует"
+
+    return {
+        "text": text,
+        "photo": photo,
+        "error_message": error_message
+    }
