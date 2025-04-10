@@ -4,7 +4,10 @@ import django
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiohttp_socks import ProxyConnector
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 # Сначала настраиваем Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'src_tgbotrestaurantchain.settings')
 django.setup()
@@ -21,7 +24,7 @@ async def main():
 
 
     storage = MemoryStorage()
-    bot = Bot(token=os.getenv(SECURITY_BOT_TOKEN), connector=connector)
+    bot = Bot(token=os.getenv("SECURITY_BOT_TOKEN"), connector=connector)
     dp = Dispatcher(storage=storage)
     dp.message.middleware(AccessMiddleware())
 
