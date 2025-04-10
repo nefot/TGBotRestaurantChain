@@ -21,7 +21,7 @@ async def main():
 
 
     storage = MemoryStorage()
-    bot = Bot(token="7941769226:AAGLfZzmKyA-jsj2C6aNHY8A0l-N_mGhpl4", connector=connector)
+    bot = Bot(token=os.getenv(SECURITY_BOT_TOKEN), connector=connector)
     dp = Dispatcher(storage=storage)
     dp.message.middleware(AccessMiddleware())
 
